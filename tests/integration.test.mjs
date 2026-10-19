@@ -12,6 +12,11 @@ test('Anmeldung, Rollen, CMS und Mitgliederdaten',async()=>{
  await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject);child.once('exit',()=>reject(Error('Testserver vorzeitig beendet')))});
  const request=async(path,method='GET',data,cookie,origin='http://127.0.0.1:3098')=>{const r=await fetch('http://127.0.0.1:3098/api/'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:data?JSON.stringify(data):undefined});return {status:r.status,body:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]}};
  assert.equal((await request('members')).status,401);
+ const imported=(await request('articles')).body;
+ assert.equal(imported.length,123);
+ assert.equal(imported[0].title,'Tiefe Trauer');
+ assert.ok(imported.some(a=>a.title==='TrainerInnen gesucht'&&a.body.includes('<img')));
+ assert.ok(imported.some(a=>a.title==='Punkte nach Hause gebracht (71:40)'&&a.body.length>1000));
  assert.equal((await request('setup','POST',{email:'admin@example.org',password:'test-password-12345'},null,'https://evil.invalid')).status,403);
  assert.equal((await request('setup','POST',{email:'admin@example.org',password:'test-password-12345'})).status,201);
  assert.equal((await request('setup','POST',{email:'other@example.org',password:'test-password-12345'})).status,409);
@@ -27,6 +32,12 @@ test('Anmeldung, Rollen, CMS und Mitgliederdaten',async()=>{
  assert.equal((await request('articles','POST',payload,editor.cookie)).status,200);
  assert.ok(!(await request('articles')).body.some(a=>a.title==='Testartikel'));
  const article=(await request('articles','GET',null,editor.cookie)).body.find(a=>a.title==='Testartikel');assert.equal(article.body,'<h2>Hallo</h2><p>Teamgeist</p>');
+ const media={...payload,title:'Bild und Links',body:'<img src="/assets/original/123abc.jpg" onerror="alert(1)"><img src="https://evil.invalid/x"><a href="javascript:alert(1)" onclick="alert(1)">Unsicher</a><a href="/seiten/archiv.html">Archiv</a>'};
+ await request('articles','POST',media,editor.cookie);
+ const cleaned=(await request('articles','GET',null,editor.cookie)).body.find(a=>a.title===media.title).body;
+ assert.ok(cleaned.includes('<img src="/assets/original/123abc.jpg"'));
+ assert.ok(cleaned.includes('href="/seiten/archiv.html"'));
+ assert.doesNotMatch(cleaned,/onerror|onclick|javascript:|evil.invalid/);
  assert.equal((await request('articles','POST',{...payload,id:article.id,status:'published'},editor.cookie)).status,200);
  assert.ok((await request('articles')).body.some(a=>a.id===article.id));
  await request('articles/'+article.id,'DELETE',null,editor.cookie);assert.ok(!(await request('articles')).body.some(a=>a.id===article.id));
