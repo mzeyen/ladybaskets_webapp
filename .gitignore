@@ -3,3 +3,4 @@ data/
 .env
 .migration/
 .idea/
+*.tar.gz

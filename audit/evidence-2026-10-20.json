@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-20",
+  "scope": "Local source and isolated HTTP checks; no production access",
+  "checks": [
+    {
+      "name": "Setup accepted through loopback reverse proxy on empty database",
+      "actual": 201
+    },
+    {
+      "name": "Isolated owner login",
+      "actual": 200
+    },
+    {
+      "name": "Unauthenticated member read blocked",
+      "actual": 401
+    },
+    {
+      "name": "All initial CMS pages render",
+      "actual": 222
+    },
+    {
+      "name": "Broken local href/src targets in rendered pages",
+      "actual": []
+    },
+    {
+      "name": "Unique rendered local href/src targets checked",
+      "actual": 432
+    },
+    {
+      "name": "No sitemap endpoint",
+      "actual": 404
+    },
+    {
+      "name": "No robots endpoint",
+      "actual": 404
+    },
+    {
+      "name": "Set imported teams page to draft",
+      "actual": 200
+    },
+    {
+      "name": "Canonical draft route blocked",
+      "actual": 404
+    },
+    {
+      "name": "Duplicate slash serves static original of unpublished page",
+      "actual": 200
+    },
+    {
+      "name": "Duplicate slash response contains original team content",
+      "actual": true
+    },
+    {
+      "name": "POST serves static original without authentication",
+      "actual": 200
+    },
+    {
+      "name": "POST response contains original team content",
+      "actual": true
+    },
+    {
+      "name": "Editor creation",
+      "actual": 201
+    },
+    {
+      "name": "No user deletion endpoint",
+      "actual": 404
+    },
+    {
+      "name": "First article update",
+      "actual": 200
+    },
+    {
+      "name": "Stale article update also accepted",
+      "actual": 200
+    },
+    {
+      "name": "Stale update overwrites newer title",
+      "actual": "Audit stale overwrite"
+    },
+    {
+      "name": "Invalid login 1",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 2",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 3",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 4",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 5",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 6",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 7",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 8",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 9",
+      "actual": 401
+    },
+    {
+      "name": "Invalid login 10",
+      "actual": 401
+    },
+    {
+      "name": "Valid unrelated account blocked after ten failures on shared IP",
+      "actual": 429
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import {join} from 'node:path';
 
 test('Anmeldung, Rollen, CMS und Mitgliederdaten',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'ladybaskets-test-'));
- const child=spawn(process.execPath,['server.mjs'],{env:{...process.env,PORT:'3098',DB_PATH:join(dir,'test.sqlite')},stdio:['ignore','pipe','pipe']});
+ const child=spawn(process.execPath,['server.mjs'],{env:{...process.env,ALLOW_SETUP:'1',PORT:'3098',DB_PATH:join(dir,'test.sqlite')},stdio:['ignore','pipe','pipe']});
  try{
  await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject);child.once('exit',()=>reject(Error('Testserver vorzeitig beendet')))});
  const request=async(path,method='GET',data,cookie,origin='http://127.0.0.1:3098')=>{const r=await fetch('http://127.0.0.1:3098/api/'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:data?JSON.stringify(data):undefined});return {status:r.status,body:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0]}};
@@ -22,6 +22,7 @@ test('Anmeldung, Rollen, CMS und Mitgliederdaten',async()=>{
  assert.equal((await request('setup','POST',{email:'other@example.org',password:'test-password-12345'})).status,409);
  assert.equal((await request('login','POST',{email:'admin@example.org',password:'wrong'})).status,401);
  const admin=await request('login','POST',{email:'admin@example.org',password:'test-password-12345'});assert.equal(admin.status,200);assert.ok(admin.cookie);
+ assert.equal((await request('session','GET',null,admin.cookie)).body.user.role,'superadmin');
  assert.equal((await request('members','POST',{name:'Test Mitglied',email:'member@example.org',team:'Jugend'},admin.cookie)).status,200);
  const members=await request('members','GET',null,admin.cookie);assert.equal(members.body.length,1);
  assert.equal((await request('users','POST',{email:'editor@example.org',password:'editor-password-123'},admin.cookie)).status,201);
