@@ -20,6 +20,14 @@ test('Rechtsseiten sind auch im CMS erreichbar; öffentliche Medien laden ohne D
   assert.match(privacy,/Max-Age=28800/);
   assert.match(privacy,/§ 25 Abs. 2 Nr. 2 TDDDG/);
   assert.doesNotMatch(readFileSync('public/style.css','utf8'),/https?:\/\//);
+  const css=readFileSync('public/style.css','utf8');
+  for(const file of ['basketball-court','basketball-training','basketball-game']){
+   assert.ok(css.includes(`/assets/unsplash/${file}.jpg`));
+   assert.equal(readFileSync(`public/assets/unsplash/${file}.jpg`).subarray(0,3).toString('hex'),'ffd8ff');
+  }
+  assert.match(css,/\.news-card:nth-child\(3n\+1\)/);
+  assert.match(css,/\.news-card:nth-child\(3n\+2\)/);
+  assert.match(css,/\.news-card:nth-child\(3n\)/);
   assert.doesNotMatch(readFileSync('public/app.js','utf8'),/\$\('#legal'\)/);
  }finally{db.close()}
 });

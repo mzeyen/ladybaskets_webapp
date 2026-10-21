@@ -68,7 +68,9 @@ function mainNavigation(nav){
 export function renderPage(page,nav,{homeTemplate,news},preview=false){
  let body=page.format==='html'?page.body:`<div class="article-body">${esc(page.body)}</div>`;
  if(page.kind==='home'){
-  body=body.replaceAll(newsPlaceholder,news);
+  body=body.replaceAll(newsPlaceholder,news)
+   .replace('Abstraktes Basketballmotiv in Vereinsfarben','Basketballkorb mit Ball in einer Sporthalle')
+   .replace('Grafik · Vereinsfarben','Symbolbild · Unsplash');
   return homeTemplate.replace(/<title>[\s\S]*?<\/title>/,()=>`<title>${esc(page.title)} · LadyBaskets Jena</title>`)
    .replace(/<main id="home">[\s\S]*?<\/main>/,()=>`<main id="home">${body}</main>`)
    .replace(/<nav aria-label="Hauptnavigation">[\s\S]*?<\/nav>/,()=>`<nav aria-label="Hauptnavigation">${mainNavigation(nav)}</nav>`)
