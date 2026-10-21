@@ -5,12 +5,17 @@ import { initializePages, pageNavigation, renderPage, safePage, newsPlaceholder 
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes } from 'node:crypto';
 import {hash, verify, validPassword, audit, loginLimiter} from './security.mjs';
+import {isLocalImagePath} from './media-policy.mjs';
+import {readImageBody,saveUploadedImage,ImageUploadError} from './image-uploads.mjs';
 import { mkdirSync, readFileSync } from 'node:fs';
-import { resolve, extname } from 'node:path';
+import { resolve, extname,dirname } from 'node:path';
 
 mkdirSync('data',{recursive:true});
 const db=new DatabaseSync(process.env.DB_PATH||'data/club.sqlite');
 db.exec(`PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE,password TEXT,role TEXT); CREATE TABLE IF NOT EXISTS articles(id INTEGER PRIMARY KEY,title TEXT,category TEXT,body TEXT,format TEXT,status TEXT,date TEXT); CREATE TABLE IF NOT EXISTS members(id INTEGER PRIMARY KEY,name TEXT,email TEXT,team TEXT,status TEXT); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id INTEGER,expires INTEGER);`);
+db.exec('CREATE TABLE IF NOT EXISTS media(hash TEXT PRIMARY KEY,label TEXT NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL,bytes INTEGER NOT NULL,created TEXT NOT NULL)');
+const uploadDirectory=resolve(dirname(resolve(process.env.DB_PATH||'data/club.sqlite')),'uploads');
+let activeUploads=0;
 initializeRoles(db);
 if(!db.prepare('PRAGMA table_info(users)').all().some(c=>c.name==='disabled'))db.exec('ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0');
 if(process.env.NODE_ENV==='production'&&(process.env.COOKIE_SECURE!=='1'||!process.env.PUBLIC_ORIGIN?.startsWith('https://')))throw Error('Production requires HTTPS PUBLIC_ORIGIN and COOKIE_SECURE=1');
@@ -24,8 +29,8 @@ function json(res,status,data){res.writeHead(status,{'Content-Type':'application
 async function body(req){let text='';for await(const chunk of req){text+=chunk;if(text.length>200000)throw Error('Die Eingabe ist zu groß.')}return JSON.parse(text||'{}')}
 const clean=(v,n=1000)=>String(v??'').trim().slice(0,n);
 export function safeRich(html){return String(html).replace(/<!--[\s\S]*?-->/g,'').replace(/<(script|style|iframe|object|svg|math)[\s\S]*?<\/\1\s*>/gi,'').replace(/<[^>]*>/g,tag=>{
- const m=tag.match(/^<(\/?)(p|br|strong|b|em|i|u|h2|h3|h4|h5|ul|ol|li|blockquote|a|img|figure|figcaption|table|thead|tbody|tr|td|th)\b[^>]*>$/i);if(!m)return '';
- const name=m[2].toLowerCase();if(m[1])return name==='img'?'':`</${name}>`;
+ const m=tag.match(/^<(\/?)(p|br|strong|b|em|i|u|s|pre|code|hr|h2|h3|h4|h5|ul|ol|li|blockquote|a|img|figure|figcaption|table|thead|tbody|tr|td|th)\b[^>]*>$/i);if(!m)return '';
+ const name=m[2].toLowerCase();if(m[1])return ['img','br','hr'].includes(name)?'':`</${name}>`;
  const attribute=key=>tag.match(new RegExp('\\s'+key+'\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')','i'))?.slice(1).find(v=>v!==undefined)||'';
  const escape=v=>v.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');
  if(name==='a'){
@@ -34,14 +39,24 @@ export function safeRich(html){return String(html).replace(/<!--[\s\S]*?-->/g,''
  }
  if(name==='img'){
   const src=attribute('src');
-  return /^\/assets\/original\/[a-f\d]+\.(?:png|jpe?g|gif|webp)$/i.test(src)?`<img src="${src}" alt="${escape(attribute('alt'))}" loading="lazy">`:'';
+  return isLocalImagePath(src)?`<img src="${src}" alt="${escape(attribute('alt'))}" loading="lazy">`:'';
  }
+ if(['p','h2','h3','h4','h5'].includes(name)){
+  const align=attribute('data-align');
+  return ['left','center','right','justify'].includes(align)?`<${name} data-align="${align}">`:`<${name}>`;
+ }
+ if(['td','th'].includes(name)){
+  let attrs='';for(const key of ['colspan','rowspan']){const n=Number(attribute(key));if(Number.isInteger(n)&&n>=1&&n<=20)attrs+=` ${key}="${n}"`}
+  return `<${name}${attrs}>`;
+ }
+ if(name==='ol'){const n=Number(attribute('start'));return Number.isInteger(n)&&n>=1&&n<=9999?`<ol start="${n}">`:'<ol>'}
  return `<${name}>`;
  })}
 const publicDir=resolve('public');
 const pageTemplates=initializePages(db,publicDir,safeRich);
 const server=http.createServer(async(req,res)=>{try{
  const url=new URL(req.url,'http://localhost');
+ const localPreview=process.env.LOCAL_EDITOR_DEMO==='1'&&process.env.NODE_ENV!=='production'&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
  res.on('finish',()=>{if(!['GET','HEAD'].includes(req.method))audit('request',{method:req.method,path:url.pathname,status:res.statusCode,actor:res.localsUser||null})});
  if(url.pathname.includes('//')||url.pathname.includes('\\')||/%(?:2f|5c|2e)/i.test(url.pathname))return json(res,404,{error:'Nicht gefunden.'});
  res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','DENY');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
@@ -52,6 +67,29 @@ const server=http.createServer(async(req,res)=>{try{
  if(url.pathname.startsWith('/api/')){
  if(!['GET','HEAD'].includes(req.method)&&(process.env.PUBLIC_ORIGIN?req.headers.origin!==process.env.PUBLIC_ORIGIN:req.headers.origin!==`http://${req.headers.host}`&&req.headers.origin!==`https://${req.headers.host}`))return json(res,403,{error:'Ungültiger Anfrageursprung.'});
  const p=url.pathname;
+ if(p==='/api/images'){
+  if(!localPreview&&!user)return json(res,401,{error:'Bitte zuerst anmelden.'});
+  if(!localPreview&&!['superadmin','admin','editor'].includes(user.role))return json(res,403,{error:'Kein Zugriff auf die Bildverwaltung.'});
+  if(req.method==='GET'){
+   const uploaded=db.prepare('SELECT hash,label,width,height,bytes FROM media ORDER BY created DESC LIMIT 200').all().map(row=>({path:`/assets/uploads/${row.hash}.webp`,label:row.label,width:row.width,height:row.height,bytes:row.bytes}));
+   const archive=JSON.parse(readFileSync(resolve('public/assets/editor/images.json'),'utf8')).filter(image=>isLocalImagePath(image.path));
+   return json(res,200,[...uploaded,...archive]);
+  }
+  if(req.method==='POST'){
+   if(activeUploads>=2){req.resume();return json(res,429,{error:'Es werden gerade Bilder verarbeitet. Bitte kurz warten.'})}
+   activeUploads++;
+   try{
+    let name='Bild';try{name=decodeURIComponent(req.headers['x-file-name']||'Bild')}catch{}
+    const image=await saveUploadedImage(await readImageBody(req),{directory:uploadDirectory,contentType:req.headers['content-type'],name});
+    db.prepare('INSERT OR IGNORE INTO media VALUES(?,?,?,?,?,?)').run(image.hash,image.label,image.width,image.height,image.bytes,new Date().toISOString());
+    audit('image_uploaded',{actor:user?.id||null,bytes:image.bytes});
+    return json(res,201,image);
+   }catch(error){if(error instanceof ImageUploadError)return json(res,error.status,{error:error.message});throw error}
+   finally{activeUploads--}
+  }
+  return json(res,405,{error:'Methode nicht erlaubt.'});
+ }
+ if(p==='/api/editor-preview'&&localPreview&&req.method==='POST'){const b=await body(req);return json(res,200,{html:safeRich(clean(b.html,150000))})}
  if(p==='/api/session')return json(res,200,{user,setup:setupEnabled&&!db.prepare('SELECT id FROM users LIMIT 1').get()});
  if(p==='/api/setup'&&req.method==='POST'){
  if(!setupEnabled)return json(res,403,{error:'Die HTTP-Ersteinrichtung ist deaktiviert.'});
@@ -157,7 +195,14 @@ const server=http.createServer(async(req,res)=>{try{
   res.end(req.method==='HEAD'?undefined:renderPage(page,pageNavigation(db),pageTemplates,page.status==='draft'));return;
  }
  if(!['GET','HEAD'].includes(req.method)){res.setHeader('Allow','GET, HEAD');return json(res,405,{error:'Methode nicht erlaubt.'})}
- if(!(/^\/assets\/[a-zA-Z0-9_./-]+$/.test(url.pathname)||['/style.css','/pages.css','/app.js','/page-admin.js','/account-admin.js','/favicon.ico','/robots.txt','/sitemap.xml'].includes(url.pathname)))return json(res,404,{error:'Nicht gefunden.'});
+ if(/^\/assets\/uploads\/[a-f\d]{64}\.webp$/.test(url.pathname)){
+  const hash=url.pathname.split('/').at(-1).slice(0,-5);
+  if(!db.prepare('SELECT hash FROM media WHERE hash=?').get(hash))return json(res,404,{error:'Bild nicht gefunden.'});
+  try{const data=readFileSync(resolve(uploadDirectory,hash+'.webp'));res.writeHead(200,{'Content-Type':'image/webp','Cache-Control':'public, max-age=31536000, immutable'});res.end(req.method==='HEAD'?undefined:data)}catch{return json(res,404,{error:'Bild nicht gefunden.'})}
+  return;
+ }
+ if(url.pathname==='/editor-demo.html'&&localPreview){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow'});res.end(req.method==='HEAD'?undefined:readFileSync(resolve(publicDir,'editor-demo.html')));return}
+ if(!(/^\/assets\/[a-zA-Z0-9_./-]+$/.test(url.pathname)||['/style.css','/pages.css','/editor.css','/editor-demo.js','/app.js','/page-admin.js','/account-admin.js','/favicon.ico','/robots.txt','/sitemap.xml'].includes(url.pathname)))return json(res,404,{error:'Nicht gefunden.'});
  const path=resolve(publicDir,'.'+(url.pathname==='/'?'/index.html':url.pathname));if(!path.startsWith(publicDir+'\\')&&!path.startsWith(publicDir+'/'))return json(res,404,{error:'Nicht gefunden.'});
  try{const data=readFileSync(path);res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.gif':'image/gif','.webp':'image/webp','.pdf':'application/pdf'})[extname(path)]||'application/octet-stream'});res.end(req.method==='HEAD'?undefined:data)}catch{res.writeHead(404);res.end('Nicht gefunden')}
  }catch(e){audit('request_error',{method:req.method,errorType:e.name});json(res,400,{error:'Die Anfrage konnte nicht verarbeitet werden.'})}});

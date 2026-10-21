@@ -1,1 +1,27 @@
-{"name":"ladybaskets-jena","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test tests/*.test.mjs"},"engines":{"node":">=24"}}
+{
+  "name": "ladybaskets-jena",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build:editor": "node scripts/build-editor.mjs",
+    "start:preview": "node scripts/start-preview.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@tiptap/core": "3.32.0",
+    "@tiptap/extension-image": "3.32.0",
+    "@tiptap/extension-table": "3.32.0",
+    "@tiptap/extension-text-align": "3.32.0",
+    "@tiptap/pm": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

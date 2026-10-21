@@ -1,0 +1,10 @@
+import {createRichEditor} from './assets/editor/tiptap.js';
+const initial='<h2>Gemeinsam am Ball</h2><p>Willkommen bei den <strong>LadyBaskets Jena</strong>. Hier kannst du den neuen Editor ausprobieren.</p><ul><li>Text markieren und formatieren</li><li>Mit „Tabelle“ einen Trainingsplan erstellen</li><li>Mit „Bild“ ein Vereinsfoto auswählen</li></ul><blockquote><p>Ein Team. Viele Stärken.</p></blockquote><p><a href="/seiten/kontakt.html">Zum Vereinskontakt</a></p>';
+const message=document.querySelector('#demo-message');
+let timer,revision=0;
+async function preview(){const current=++revision;try{const response=await fetch('/api/editor-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({html:editor.getHTML()})});if(!response.ok)throw Error();const data=await response.json();if(current!==revision)return;document.querySelector('#demo-preview').innerHTML=data.html;document.querySelector('#demo-html').textContent=data.html;return data.html}catch{message.textContent='Vorschau konnte nicht geladen werden.'}}
+const editor=createRichEditor(document.querySelector('#demo-editor'),{content:initial,label:'Tiptap Testinhalt',onChange:()=>{clearTimeout(timer);timer=setTimeout(preview,250)}});
+document.querySelector('#demo-save').onclick=async()=>{clearTimeout(timer);const html=await preview();if(!html)return;try{localStorage.setItem('ladybaskets-tiptap-draft',html);message.textContent='Entwurf in diesem Browser gespeichert.'}catch{message.textContent='Der Browser erlaubt das Speichern des Entwurfs nicht.'}};
+document.querySelector('#demo-load').onclick=()=>{try{const saved=localStorage.getItem('ladybaskets-tiptap-draft');if(saved){editor.setContent(saved);message.textContent='Entwurf geladen.'}else message.textContent='Es gibt noch keinen gespeicherten Entwurf.'}catch{message.textContent='Entwurf konnte nicht geladen werden.'}};
+document.querySelector('#demo-reset').onclick=()=>{editor.setContent(initial);message.textContent='Beispiel wiederhergestellt. Dein gespeicherter Entwurf bleibt erhalten.'};
+await preview();

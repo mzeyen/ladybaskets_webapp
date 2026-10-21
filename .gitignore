@@ -3,4 +3,5 @@ data/
 .env
 .migration/
 .idea/
+node_modules/
 *.tar.gz

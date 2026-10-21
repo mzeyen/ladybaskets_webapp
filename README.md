@@ -1,10 +1,21 @@
 # LadyBaskets Jena e.V.
 
-Responsive Vereinswebseite mit serverseitigem CMS, Redaktionslogin und Mitgliederverwaltung. Node.js ab Version 24; keine Paketinstallation erforderlich.
+Responsive Vereinswebseite mit serverseitigem CMS, Redaktionslogin und Mitgliederverwaltung. Node.js ab Version 24; Abhängigkeiten mit `npm ci` installieren.
+
+## Lokale Tiptap-Vorschau
+
+`npm run start:preview` startet die lokale Testinstallation auf `http://127.0.0.1:3000` mit der vorhandenen lokalen Datenbank unter `data/club.sqlite` (einschließlich bestehender Benutzerkonten). Unter `http://127.0.0.1:3000/editor-demo.html` lässt sich Tiptap ohne Anmeldung ausprobieren. Entwürfe dieser Testseite werden ausschließlich im jeweiligen Browser gespeichert. Änderungen im angemeldeten CMS werden dagegen in der lokalen Datenbank gespeichert. Mit `DB_PATH` lässt sich bei Bedarf eine separate Testdatenbank auswählen. Die HTML-Vorschau verwendet dieselbe serverseitige Bereinigung wie das CMS. Die Testseite ist nur bei ausdrücklich aktivierter lokaler Vorschau, Loopback-Zugriff und außerhalb des Produktionsmodus verfügbar.
+
+Beiträge und normale Vereinsseiten verwenden nun Tiptap mit Überschriften, Listen, Textformatierung, Ausrichtung, Links, Tabellen, Rückgängig/Wiederholen und einer Bildauswahl aus vorhandenen lokalen Vereinsbildern. Unter **Bild → Neues Bild hochladen** lassen sich JPEG-, PNG- und WebP-Dateien bis 5 MB und 40 Megapixel hochladen. Die Bilder werden geprüft, entsprechend ihrer EXIF-Ausrichtung gedreht, ohne Vergrößerung auf maximal 2400 × 2400 Pixel begrenzt und ohne EXIF-Metadaten als WebP gespeichert. Animierte Bilder und SVG sind nicht zugelassen. Für die gestaltete Startseite bleibt der bestehende Layouteditor aktiv, damit ihre Container und der automatische Nachrichtenbereich erhalten bleiben.
+
+Das fertige Editor-Bundle liegt unter `public/assets/editor/` und wird ausschließlich vom eigenen Server geladen. Der Server benötigt die installierten Laufzeitabhängigkeiten einschließlich Sharp (`npm ci --omit=dev` für den Betrieb). Zur Weiterentwicklung beziehungsweise zum Neubauen: `npm ci` und `npm run build:editor`. Versionen sind in `package-lock.json` fixiert; Lizenzhinweise befinden sich unter `public/assets/editor/LICENSES.txt`. Der Build erzeugt auch die lokale Bildauswahlliste anhand des Importarchivs.
+
+Uploads liegen im Unterordner `uploads` neben der jeweils verwendeten SQLite-Datenbank, in der lokalen Vorschau unter `data/uploads`. Die Tabelle `media` speichert ihre Metadaten. Datenbank und Uploadverzeichnis sind gemeinsam zu sichern. Identische optimierte Bilder werden nur einmal gespeichert. Bilddateien sind über ihre Bildadresse abrufbar, sobald sie hochgeladen sind. Die Upload- und Mediathek-API erfordert ein berechtigtes Redaktions-/Administrationskonto; ausschließlich die ausdrücklich aktivierte Loopback-Vorschau erlaubt Tests ohne Anmeldung. Uploads bleiben auch dann in der Mediathek, wenn ein Browserentwurf zurückgesetzt wird.
 
 ## Starten
 
 ```sh
+npm ci
 npm start
 ```
 

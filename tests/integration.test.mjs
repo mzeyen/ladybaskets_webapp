@@ -35,11 +35,17 @@ test('Anmeldung, Rollen, CMS und Mitgliederdaten',async()=>{
  const article=(await request('articles','GET',null,editor.cookie)).body.find(a=>a.title==='Testartikel');assert.equal(article.body,'<h2>Hallo</h2><p>Teamgeist</p>');
  const media={...payload,title:'Bild und Links',body:'<img src="/assets/original/123abc.jpg" onerror="alert(1)"><img src="https://evil.invalid/x"><a href="javascript:alert(1)" onclick="alert(1)">Unsicher</a><a href="/seiten/archiv.html">Archiv</a>'};
  media.body+='<a href="#teams">Zu den Teams</a>';
+ media.body+='<h3 data-align="center" style="color:red" onclick="alert(1)">Zentriert</h3><p><s>Alt</s> <u>Neu</u></p><ol start="3"><li>Liste</li></ol><table><tbody><tr><th colspan="2" rowspan="2" onmouseover="alert(1)">Plan</th></tr></tbody></table>';
  await request('articles','POST',media,editor.cookie);
  const cleaned=(await request('articles','GET',null,editor.cookie)).body.find(a=>a.title===media.title).body;
  assert.ok(cleaned.includes('<img src="/assets/original/123abc.jpg"'));
  assert.ok(cleaned.includes('href="/seiten/archiv.html"'));
  assert.ok(cleaned.includes('href="#teams"'));
+ assert.ok(cleaned.includes('<h3 data-align="center">Zentriert</h3>'));
+ assert.ok(cleaned.includes('<s>Alt</s>'));
+ assert.ok(cleaned.includes('<ol start="3">'));
+ assert.ok(cleaned.includes('<th colspan="2" rowspan="2">Plan</th>'));
+ assert.doesNotMatch(cleaned,/style=|onmouseover/);
  assert.doesNotMatch(cleaned,/onerror|onclick|javascript:|evil.invalid/);
  assert.equal((await request('articles','POST',{...payload,id:article.id,status:'published'},editor.cookie)).status,200);
  assert.ok((await request('articles')).body.some(a=>a.id===article.id));
