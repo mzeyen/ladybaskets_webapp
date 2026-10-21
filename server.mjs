@@ -45,7 +45,7 @@ const server=http.createServer(async(req,res)=>{try{
  res.on('finish',()=>{if(!['GET','HEAD'].includes(req.method))audit('request',{method:req.method,path:url.pathname,status:res.statusCode,actor:res.localsUser||null})});
  if(url.pathname.includes('//')||url.pathname.includes('\\')||/%(?:2f|5c|2e)/i.test(url.pathname))return json(res,404,{error:'Nicht gefunden.'});
  res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','DENY');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
- res.setHeader('Content-Security-Policy',"default-src 'self'; img-src 'self' https://images.unsplash.com; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+ res.setHeader('Content-Security-Policy',"default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
  const token=(req.headers.cookie||'').match(/(?:^|;\s*)session=([a-f0-9]+)/)?.[1];
  const user=token?(db.prepare('SELECT users.id,email,role FROM sessions JOIN users ON users.id=sessions.user_id WHERE token=? AND expires>? AND users.disabled=0').get(token,Date.now())??null):null;
  res.localsUser=user?.id;

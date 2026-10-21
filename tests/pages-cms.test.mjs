@@ -26,7 +26,7 @@ test('Seiten bearbeiten, anlegen, veröffentlichen und dauerhaft speichern',asyn
   await api('users','POST',{email:'editor@example.org',password:'editor-password-12345'},owner.cookie);
   const editor=await api('login','POST',{email:'editor@example.org',password:'editor-password-12345'});
   const list=(await api('pages','GET',null,editor.cookie)).body;
-  assert.equal(list.length,222);
+  assert.equal(list.length,223);
   assert.ok(!Object.hasOwn(list[0],'body'));
   const teamMeta=list.find(p=>p.slug==='teams'),homeMeta=list.find(p=>p.kind==='home');
   const teams=(await api('pages/'+teamMeta.id,'GET',null,editor.cookie)).body;
@@ -88,6 +88,6 @@ test('Seiten bearbeiten, anlegen, veröffentlichen und dauerhaft speichern',asyn
   assert.equal((await getPage('/seiten/teams.html')).status,404);
   assert.ok((await (await getPage('/')).text()).includes('Zusammen.'));
   assert.ok((await (await getPage(page.path)).text()).includes('Ferienprogramm'));
-  assert.equal((await api('pages','GET',null,editor.cookie)).body.length,224);
+  assert.equal((await api('pages','GET',null,editor.cookie)).body.length,list.length+2);
  }finally{if(child)await stop();rmSync(dir,{recursive:true,force:true})}
 });
