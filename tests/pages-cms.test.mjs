@@ -34,6 +34,8 @@ test('Seiten bearbeiten, anlegen, veröffentlichen und dauerhaft speichern',asyn
   const initialHome=await (await getPage('/')).text();
   assert.ok(initialHome.includes('class="hero"'));
   assert.ok(initialHome.includes('class="button accent"'));
+  assert.match(initialHome,/<a[^>]*href="\/seiten\/kontakt.html"[^>]*>Komm zum Probetraining/);
+  assert.match(initialHome,/<a[^>]*href="\/seiten\/teams.html"[^>]*>Entdecke unsere Teams/);
   assert.equal([...initialHome.matchAll(/id="news-grid"/g)].length,1);
   assert.ok(!initialHome.includes('{{AKTUELLE_BEITRAEGE}}'));
 

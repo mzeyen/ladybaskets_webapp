@@ -5,6 +5,14 @@ export const newsPlaceholder='{{AKTUELLE_BEITRAEGE}}';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const primary=['verein','teams','galerie','kontakt','partner','downloads','archiv'];
 
+export function repairHomeActions(html){
+ return html.replace(/(<div class="actions">)([\s\S]*?)(<\/div>)/g,(_,open,body,close)=>open+body
+  .replace(/<a\b([^>]*)>(Komm zum Probetraining|Entdecke unsere Teams)/g,(_,attrs,label)=>{
+   const path=label==='Komm zum Probetraining'?'/seiten/kontakt.html':'/seiten/teams.html';
+   return `<a${attrs.replace(/\s+href=(?:"[^"]*"|'[^']*')/g,'')} href="${path}">${label}`;
+  })+close);
+}
+
 export function safePage(html,sanitize){
  // Preserve layout containers from the existing homepage, but no executable attributes.
  const preserved=[];
@@ -68,7 +76,7 @@ function mainNavigation(nav){
 export function renderPage(page,nav,{homeTemplate,news},preview=false){
  let body=page.format==='html'?page.body:`<div class="article-body">${esc(page.body)}</div>`;
  if(page.kind==='home'){
-  body=body.replaceAll(newsPlaceholder,news)
+  body=repairHomeActions(body).replaceAll(newsPlaceholder,news)
    .replace('Abstraktes Basketballmotiv in Vereinsfarben','Basketballkorb mit Ball in einer Sporthalle')
    .replace('Grafik · Vereinsfarben','Symbolbild · Unsplash');
   return homeTemplate.replace(/<title>[\s\S]*?<\/title>/,()=>`<title>${esc(page.title)} · LadyBaskets Jena</title>`)

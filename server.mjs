@@ -30,7 +30,7 @@ export function safeRich(html){return String(html).replace(/<!--[\s\S]*?-->/g,''
  const escape=v=>v.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');
  if(name==='a'){
   const href=attribute('href').replaceAll('&amp;','&');
-  return /^(?:\/(?!\/)|https?:\/\/|mailto:|tel:)/i.test(href)&&!/[\u0000-\u0020\\]/.test(href)?`<a href="${escape(href)}" rel="noopener noreferrer">`:'<a>';
+  return /^(?:#[a-z][\w:-]*$|\/(?!\/)|https?:\/\/|mailto:|tel:)/i.test(href)&&!/[\u0000-\u0020\\]/.test(href)?`<a href="${escape(href)}" rel="noopener noreferrer">`:'<a>';
  }
  if(name==='img'){
   const src=attribute('src');
